@@ -1,6 +1,6 @@
 /*!
  * Vue.js v2.6.12
- * (c) 2014-2020 Evan You
+ * (c) 2014-2021 Evan You
  * Released under the MIT License.
  */
 (function (global, factory) {
@@ -1784,18 +1784,19 @@
       " Expected " + (expectedTypes.map(capitalize).join(', '));
     var expectedType = expectedTypes[0];
     var receivedType = toRawType(value);
-    var expectedValue = styleValue(value, expectedType);
-    var receivedValue = styleValue(value, receivedType);
     // check if we need to specify expected value
-    if (expectedTypes.length === 1 &&
-        isExplicable(expectedType) &&
-        !isBoolean(expectedType, receivedType)) {
-      message += " with value " + expectedValue;
+    if (
+      expectedTypes.length === 1 &&
+      isExplicable(expectedType) &&
+      isExplicable(typeof value) &&
+      !isBoolean(expectedType, receivedType)
+    ) {
+      message += " with value " + (styleValue(value, expectedType));
     }
     message += ", got " + receivedType + " ";
     // check if we need to specify received value
     if (isExplicable(receivedType)) {
-      message += "with value " + receivedValue + ".";
+      message += "with value " + (styleValue(value, receivedType)) + ".";
     }
     return message
   }
@@ -1810,9 +1811,9 @@
     }
   }
 
+  var EXPLICABLE_TYPES = ['string', 'number', 'boolean'];
   function isExplicable (value) {
-    var explicitTypes = ['string', 'number', 'boolean'];
-    return explicitTypes.some(function (elem) { return value.toLowerCase() === elem; })
+    return EXPLICABLE_TYPES.some(function (elem) { return value.toLowerCase() === elem; })
   }
 
   function isBoolean () {
@@ -3273,8 +3274,10 @@
   }
 
   function createComponentInstanceForVnode (
-    vnode, // we know it's MountedComponentVNode but flow doesn't
-    parent // activeInstance in lifecycle state
+    // we know it's MountedComponentVNode but flow doesn't
+    vnode,
+    // activeInstance in lifecycle state
+    parent
   ) {
     var options = {
       _isComponent: true,
@@ -4958,6 +4961,7 @@
   var uid$3 = 0;
 
   function initMixin (Vue) {
+    // 定义初始化函数
     Vue.prototype._init = function (options) {
       var vm = this;
       // a uid
@@ -4965,6 +4969,7 @@
 
       var startTag, endTag;
       /* istanbul ignore if */
+      // 开发环境的性能检测
       if (config.performance && mark) {
         startTag = "vue-perf-start:" + (vm._uid);
         endTag = "vue-perf-end:" + (vm._uid);
@@ -4972,6 +4977,7 @@
       }
 
       // a flag to avoid this being observed
+      // 标识当前实例是Vue实例，observe的时候不对其进行处理
       vm._isVue = true;
       // merge options
       if (options && options._isComponent) {
@@ -5077,11 +5083,15 @@
     }
     this._init(options);
   }
-
+  // Vue原型注册了_init()方法
   initMixin(Vue);
+  // Vue原型上加上 $data/$props/$delete/$set/$watch
   stateMixin(Vue);
+  // Vue原型 初始化事件相关函数 $on/$once/$off/$emit
   eventsMixin(Vue);
+  // Vue原型 初始化生命周期相关函数 _update/$forceUpdate/$destroy
   lifecycleMixin(Vue);
+  // Vue原型初始化 一些_b/_d等内部函数/$nextTick/_render
   renderMixin(Vue);
 
   /*  */
@@ -5417,6 +5427,7 @@
     // components with in Weex's multi-instance scenarios.
     Vue.options._base = Vue;
 
+    // 注册组件keep-alive
     extend(Vue.options.components, builtInComponents);
 
     initUse(Vue);
@@ -5425,6 +5436,7 @@
     initAssetRegisters(Vue);
   }
 
+  // 设置Vue的静态方法
   initGlobalAPI(Vue);
 
   Object.defineProperty(Vue.prototype, '$isServer', {
@@ -5480,7 +5492,7 @@
     'default,defaultchecked,defaultmuted,defaultselected,defer,disabled,' +
     'enabled,formnovalidate,hidden,indeterminate,inert,ismap,itemscope,loop,multiple,' +
     'muted,nohref,noresize,noshade,novalidate,nowrap,open,pauseonexit,readonly,' +
-    'required,reversed,scoped,seamless,selected,sortable,translate,' +
+    'required,reversed,scoped,seamless,selected,sortable,' +
     'truespeed,typemustmatch,visible'
   );
 
@@ -6705,7 +6717,7 @@
       cur = attrs[key];
       old = oldAttrs[key];
       if (old !== cur) {
-        setAttr(elm, key, cur);
+        setAttr(elm, key, cur, vnode.data.pre);
       }
     }
     // #4391: in IE9, setting type can reset value for input[type=radio]
@@ -6725,8 +6737,8 @@
     }
   }
 
-  function setAttr (el, key, value) {
-    if (el.tagName.indexOf('-') > -1) {
+  function setAttr (el, key, value, isInPre) {
+    if (isInPre || el.tagName.indexOf('-') > -1) {
       baseSetAttr(el, key, value);
     } else if (isBooleanAttr(key)) {
       // set attribute for blank value
@@ -9022,6 +9034,7 @@
   /*  */
 
   // install platform specific utils
+  // 为config补充数据
   Vue.config.mustUseProp = mustUseProp;
   Vue.config.isReservedTag = isReservedTag;
   Vue.config.isReservedAttr = isReservedAttr;
@@ -9029,13 +9042,16 @@
   Vue.config.isUnknownElement = isUnknownElement;
 
   // install platform runtime directives & components
+  // 注册v-show和 v-model
   extend(Vue.options.directives, platformDirectives);
+  // 注册Transition 和 TransitionGroup ，此时Vue.options.components 已经有KeepAlive
   extend(Vue.options.components, platformComponents);
 
   // install platform patch function
   Vue.prototype.__patch__ = inBrowser ? patch : noop;
 
   // public mount method
+  // 初始化$mount
   Vue.prototype.$mount = function (
     el,
     hydrating
@@ -9247,7 +9263,7 @@
 
   // Regular Expressions for parsing tags and attributes
   var attribute = /^\s*([^\s"'<>\/=]+)(?:\s*(=)\s*(?:"([^"]*)"+|'([^']*)'+|([^\s"'=<>`]+)))?/;
-  var dynamicArgAttribute = /^\s*((?:v-[\w-]+:|@|:|#)\[[^=]+\][^\s"'<>\/=]*)(?:\s*(=)\s*(?:"([^"]*)"+|'([^']*)'+|([^\s"'=<>`]+)))?/;
+  var dynamicArgAttribute = /^\s*((?:v-[\w-]+:|@|:|#)\[[^=]+?\][^\s"'<>\/=]*)(?:\s*(=)\s*(?:"([^"]*)"+|'([^']*)'+|([^\s"'=<>`]+)))?/;
   var ncname = "[a-zA-Z_][\\-\\.0-9_a-zA-Z" + (unicodeRegExp.source) + "]*";
   var qnameCapture = "((?:" + ncname + "\\:)?" + ncname + ")";
   var startTagOpen = new RegExp(("^<" + qnameCapture));
@@ -10850,9 +10866,9 @@
         code += genModifierCode;
       }
       var handlerCode = isMethodPath
-        ? ("return " + (handler.value) + "($event)")
+        ? ("return " + (handler.value) + ".apply(null, arguments)")
         : isFunctionExpression
-          ? ("return (" + (handler.value) + ")($event)")
+          ? ("return (" + (handler.value) + ").apply(null, arguments)")
           : isFunctionInvocation
             ? ("return " + (handler.value))
             : handler.value;
@@ -11891,6 +11907,7 @@
 
     var options = this.$options;
     // resolve template/el and convert to render function
+    // 如果用户不传递render函数，解析模板
     if (!options.render) {
       var template = options.template;
       if (template) {
@@ -11963,3 +11980,4 @@
   return Vue;
 
 }));
+//# sourceMappingURL=vue.js.map

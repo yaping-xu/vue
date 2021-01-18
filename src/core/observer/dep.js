@@ -11,6 +11,7 @@ let uid = 0
  * directives subscribing to it.
  */
 export default class Dep {
+  // 静态属性, watcher对象
   static target: ?Watcher;
   id: number;
   subs: Array<Watcher>;
@@ -27,9 +28,10 @@ export default class Dep {
   removeSub (sub: Watcher) {
     remove(this.subs, sub)
   }
-
+  // 将观察对象和watcher建立依赖
   depend () {
     if (Dep.target) {
+      // 如果target存在，把 dep对象添加到wathcer的依赖中
       Dep.target.addDep(this)
     }
   }
@@ -52,9 +54,11 @@ export default class Dep {
 // The current target watcher being evaluated.
 // This is globally unique because only one watcher
 // can be evaluated at a time.
+// Dep.target用来存放目前正在使用的watcher
+// 全局唯一，并且一次也只能有一个watcher被使用
 Dep.target = null
 const targetStack = []
-
+// 入栈并将当前的watcher 赋值给dep.target
 export function pushTarget (target: ?Watcher) {
   targetStack.push(target)
   Dep.target = target

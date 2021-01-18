@@ -51,8 +51,10 @@ export function initState (vm: Component) {
   if (opts.props) initProps(vm, opts.props)
   if (opts.methods) initMethods(vm, opts.methods)
   if (opts.data) {
+    // 把data中的成员注入到vue实例，并把他转换成响应式对象
     initData(vm)
   } else {
+    // 响应式处理的入口
     observe(vm._data = {}, true /* asRootData */)
   }
   if (opts.computed) initComputed(vm, opts.computed)
@@ -123,10 +125,13 @@ function initData (vm: Component) {
     )
   }
   // proxy data on instance
+  // 获取data中所有的属性
   const keys = Object.keys(data)
+  // 获取props / methods
   const props = vm.$options.props
   const methods = vm.$options.methods
   let i = keys.length
+  // 判断 data上的成员是否和 props/methods重名
   while (i--) {
     const key = keys[i]
     if (process.env.NODE_ENV !== 'production') {
@@ -144,10 +149,12 @@ function initData (vm: Component) {
         vm
       )
     } else if (!isReserved(key)) {
+      // 把data中的成员注入到vue实例
       proxy(vm, `_data`, key)
     }
   }
   // observe data
+  // 响应式处理
   observe(data, true /* asRootData */)
 }
 

@@ -131,6 +131,7 @@ export default class Watcher {
       this.newDepIds.add(id)
       this.newDeps.push(dep)
       if (!this.depIds.has(id)) {
+        // 把watcher对象添加到dep的subs
         dep.addSub(this)
       }
     }

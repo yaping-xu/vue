@@ -725,9 +725,10 @@
   Dep.prototype.removeSub = function removeSub (sub) {
     remove(this.subs, sub);
   };
-
+  // 将观察对象和watcher建立依赖
   Dep.prototype.depend = function depend () {
     if (Dep.target) {
+      // 如果target存在，把 dep对象添加到wathcer的依赖中
       Dep.target.addDep(this);
     }
   };
@@ -749,9 +750,11 @@
   // The current target watcher being evaluated.
   // This is globally unique because only one watcher
   // can be evaluated at a time.
+  // Dep.target用来存放目前正在使用的watcher
+  // 全局唯一，并且一次也只能有一个watcher被使用
   Dep.target = null;
   var targetStack = [];
-
+  // 入栈并将当前的watcher 赋值给dep.target
   function pushTarget (target) {
     targetStack.push(target);
     Dep.target = target;
@@ -923,7 +926,9 @@
     this.value = value;
     this.dep = new Dep();
     this.vmCount = 0;
+    // 给value对象设置__ob__属性，值为当前实例
     def(value, '__ob__', this);
+    // 数组的响应式处理
     if (Array.isArray(value)) {
       if (hasProto) {
         protoAugment(value, arrayMethods);
@@ -932,6 +937,7 @@
       }
       this.observeArray(value);
     } else {
+      // 遍历对象中的每一个属性，转换成setter/getter
       this.walk(value);
     }
   };
@@ -942,7 +948,9 @@
    * value type is Object.
    */
   Observer.prototype.walk = function walk (obj) {
+    // 获取观察对象的每个属性
     var keys = Object.keys(obj);
+    // 遍历每个属性，设置为响应式数据
     for (var i = 0; i < keys.length; i++) {
       defineReactive$$1(obj, keys[i]);
     }
@@ -987,10 +995,12 @@
    * or the existing observer if the value already has one.
    */
   function observe (value, asRootData) {
+    // 判断value是否是对象
     if (!isObject(value) || value instanceof VNode) {
       return
     }
     var ob;
+    // 如果value有 __ob__(observer对象)属性 并且 value.__ob__ 是否是Observer实例，返回ob
     if (hasOwn(value, '__ob__') && value.__ob__ instanceof Observer) {
       ob = value.__ob__;
     } else if (
@@ -1000,6 +1010,7 @@
       Object.isExtensible(value) &&
       !value._isVue
     ) {
+      // 创建Observer对象
       ob = new Observer(value);
     }
     if (asRootData && ob) {
@@ -1010,6 +1021,7 @@
 
   /**
    * Define a reactive property on an Object.
+   * 为一个对象定义一个响应式的属性
    */
   function defineReactive$$1 (
     obj,
@@ -1018,39 +1030,52 @@
     customSetter,
     shallow
   ) {
+    // 创建依赖对象实例
     var dep = new Dep();
-
+    // 获取obj的属性描述符对象
     var property = Object.getOwnPropertyDescriptor(obj, key);
     if (property && property.configurable === false) {
       return
     }
 
     // cater for pre-defined getter/setters
+    // 提取用户设置的get/set
     var getter = property && property.get;
     var setter = property && property.set;
     if ((!getter || setter) && arguments.length === 2) {
       val = obj[key];
     }
 
+    // 判断是否递归观察子对象(根据shallow去判断是否需要深度监听)，并将子对象属性都转换成getter/setter, 返回子观察对象
     var childOb = !shallow && observe(val);
     Object.defineProperty(obj, key, {
       enumerable: true,
       configurable: true,
       get: function reactiveGetter () {
+        // 如果用户设置了getter,则value等于getter调用的返回值， 否则直接赋予属性值
         var value = getter ? getter.call(obj) : val;
+        // 下面的部分来收集依赖
+        // 当访问值得时候会进行依赖收集，依赖收集其实就是把依赖该属性的watcher对象添加到dep对象的subs数组中，将来数据变化的时候通知所有的watcher
+        // 如果存在当前依赖目标，即 watcher对象，则建立依赖
         if (Dep.target) {
+          // 进行依赖收集
           dep.depend();
+          // 如果子观察目标存在，建立子对象的依赖关系
           if (childOb) {
             childOb.dep.depend();
+            // 如果属性是数组，则特殊处理收集数组对象依赖
             if (Array.isArray(value)) {
               dependArray(value);
             }
           }
         }
+        // 返回属性值
         return value
       },
       set: function reactiveSetter (newVal) {
+        // 如果用户设置了getter,则value等于getter调用的返回值， 否则直接赋予属性值
         var value = getter ? getter.call(obj) : val;
+        // 如果新值等于旧值 或者 新值旧值都为NaN则不执行
         /* eslint-disable no-self-compare */
         if (newVal === value || (newVal !== newVal && value !== value)) {
           return
@@ -1059,14 +1084,19 @@
         if (customSetter) {
           customSetter();
         }
+        // 如果没有 setter 直接返回
         // #7981: for accessor properties without setter
         if (getter && !setter) { return }
         if (setter) {
+          // 如果用户设置了setter则调用setter
           setter.call(obj, newVal);
         } else {
+          // setter/getter 都不存在，更新新值
           val = newVal;
         }
+        // 如果新值是对象，观察子对象并返回 子的 observer对象
         childOb = !shallow && observe(newVal);
+        // 派发更新(发布更改通知)
         dep.notify();
       }
     });
@@ -4506,6 +4536,7 @@
       this.newDepIds.add(id);
       this.newDeps.push(dep);
       if (!this.depIds.has(id)) {
+        // 把watcher对象添加到dep的subs
         dep.addSub(this);
       }
     }
@@ -4641,8 +4672,10 @@
     if (opts.props) { initProps(vm, opts.props); }
     if (opts.methods) { initMethods(vm, opts.methods); }
     if (opts.data) {
+      // 把data中的成员注入到vue实例，并把他转换成响应式对象
       initData(vm);
     } else {
+      // 响应式处理的入口
       observe(vm._data = {}, true /* asRootData */);
     }
     if (opts.computed) { initComputed(vm, opts.computed); }
@@ -4713,10 +4746,13 @@
       );
     }
     // proxy data on instance
+    // 获取data中所有的属性
     var keys = Object.keys(data);
+    // 获取props / methods
     var props = vm.$options.props;
     var methods = vm.$options.methods;
     var i = keys.length;
+    // 判断 data上的成员是否和 props/methods重名
     while (i--) {
       var key = keys[i];
       {
@@ -4734,10 +4770,12 @@
           vm
         );
       } else if (!isReserved(key)) {
+        // 把data中的成员注入到vue实例
         proxy(vm, "_data", key);
       }
     }
     // observe data
+    // 响应式处理
     observe(data, true /* asRootData */);
   }
 
@@ -5003,6 +5041,7 @@
       initRender(vm);
       callHook(vm, 'beforeCreate');
       initInjections(vm); // resolve injections before data/props
+      // 初始化vue实例的状态，初始化了_data、_props、_methods等
       initState(vm);
       initProvide(vm); // resolve provide after data/props
       callHook(vm, 'created');

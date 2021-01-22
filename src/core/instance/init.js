@@ -52,6 +52,7 @@ export function initMixin (Vue: Class<Component>) {
     }
     // expose real self
     vm._self = vm
+    // 给vue实例挂载了一些属性
     initLifecycle(vm)
     initEvents(vm)
     initRender(vm)

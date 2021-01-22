@@ -354,13 +354,18 @@ export function stateMixin (Vue: Class<Component>) {
     cb: any,
     options?: Object
   ): Function {
+    // 先获取Vue的实例; watcher没有静态方法，应为$watcher 内部用到了Vue实例
     const vm: Component = this
     if (isPlainObject(cb)) {
+      // 判断 cb 是否为对象，是的话 执行 createWatcher
       return createWatcher(vm, expOrFn, cb, options)
     }
     options = options || {}
+    // 标记当前要创建的 watcher对象是用户watcher
     options.user = true
+    // 创建用户watcher对象
     const watcher = new Watcher(vm, expOrFn, cb, options)
+    // 判断是否立即执行
     if (options.immediate) {
       try {
         cb.call(vm, watcher.value)
@@ -368,6 +373,7 @@ export function stateMixin (Vue: Class<Component>) {
         handleError(error, vm, `callback for immediate watcher "${watcher.expression}"`)
       }
     }
+    // 返回取消监听的方法
     return function unwatchFn () {
       watcher.teardown()
     }

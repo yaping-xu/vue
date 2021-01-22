@@ -50,7 +50,9 @@ export class Observer {
     def(value, '__ob__', this)
     // 数组的响应式处理
     if (Array.isArray(value)) {
+      // 判断是否支持对象的原型属性
       if (hasProto) {
+        // 对于数组方法的修补，改变当前数组对象的原型属性，
         protoAugment(value, arrayMethods)
       } else {
         copyAugment(value, arrayMethods, arrayKeys)
@@ -80,6 +82,7 @@ export class Observer {
    * Observe a list of Array items.
    */
   observeArray (items: Array<any>) {
+    // 数组成员如果是对象转成响应式对象
     for (let i = 0, l = items.length; i < l; i++) {
       observe(items[i])
     }
@@ -234,16 +237,20 @@ export function set (target: Array<any> | Object, key: any, val: any): any {
   ) {
     warn(`Cannot set reactive property on undefined, null, or primitive value: ${(target: any)}`)
   }
+  // 判断target 是否是数组，并且key是合法的索引
   if (Array.isArray(target) && isValidArrayIndex(key)) {
     target.length = Math.max(target.length, key)
     target.splice(key, 1, val)
     return val
   }
+  // 如果key在对象中已经存在直接赋值
   if (key in target && !(key in Object.prototype)) {
     target[key] = val
     return val
   }
+  // 获取 target 中的 observer 对象
   const ob = (target: any).__ob__
+  // 如果target 是 vue实例 或者 $data 直接返回
   if (target._isVue || (ob && ob.vmCount)) {
     process.env.NODE_ENV !== 'production' && warn(
       'Avoid adding reactive properties to a Vue instance or its root $data ' +
@@ -251,11 +258,14 @@ export function set (target: Array<any> | Object, key: any, val: any): any {
     )
     return val
   }
+  // 如果ob不存在，说明target不是响应式对象，直接赋值
   if (!ob) {
     target[key] = val
     return val
   }
+  // 把key设置为响应式属性
   defineReactive(ob.value, key, val)
+  // 发送通知
   ob.dep.notify()
   return val
 }

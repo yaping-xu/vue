@@ -99,10 +99,12 @@ export default class Watcher {
    * Evaluate the getter, and re-collect dependencies.
    */
   get () {
+    // 把当前watcher对象存入栈中： 每个组件对应多个watcher，如果组件有嵌套，会把父组件对应的watcher保存起来，执行完子组件的watcher后在执行父组件
     pushTarget(this)
     let value
     const vm = this.vm
     try {
+      // 这个地方调用了updateComponent，并改变函数内部指向为vue实例
       value = this.getter.call(vm, vm)
     } catch (e) {
       if (this.user) {

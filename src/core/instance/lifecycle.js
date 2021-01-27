@@ -144,6 +144,7 @@ export function mountComponent (
   hydrating?: boolean
 ): Component {
   vm.$el = el
+  // 首先判断当前选项是否有render函数 ： 这个判断的目的是如果我们当前是运行时环境，并且我们通过选项传入了模板，此时如果是开发环境会发出警告，提示当前使用的是运行时版本，编译器是无效的，应该传入render函数或者使用带有编译器的版本
   if (!vm.$options.render) {
     vm.$options.render = createEmptyVNode
     if (process.env.NODE_ENV !== 'production') {
@@ -164,10 +165,13 @@ export function mountComponent (
       }
     }
   }
+  // 触发beforeMount声明周期函数
   callHook(vm, 'beforeMount')
 
+  // 这个函数的作用是更新组件
   let updateComponent
   /* istanbul ignore if */
+  // 如果是开发环境并启动了性能监测
   if (process.env.NODE_ENV !== 'production' && config.performance && mark) {
     updateComponent = () => {
       const name = vm._name
@@ -187,6 +191,7 @@ export function mountComponent (
     }
   } else {
     updateComponent = () => {
+      // _update函数的作用是把虚拟dom转成真实dom，更新到界面上。注意此时是赋值并没有执行呢
       vm._update(vm._render(), hydrating)
     }
   }
@@ -194,6 +199,7 @@ export function mountComponent (
   // we set this to vm._watcher inside the watcher's constructor
   // since the watcher's initial patch may call $forceUpdate (e.g. inside child
   // component's mounted hook), which relies on vm._watcher being already defined
+  // 创建Watcher对象的时候传递了updateComponent,所以updateComponent的执行是在Watcher中调用的
   new Watcher(vm, updateComponent, noop, {
     before () {
       if (vm._isMounted && !vm._isDestroyed) {
@@ -207,6 +213,7 @@ export function mountComponent (
   // mounted is called for render-created child components in its inserted hook
   if (vm.$vnode == null) {
     vm._isMounted = true
+    // 最后触发了mounted声明周期函数
     callHook(vm, 'mounted')
   }
   return vm

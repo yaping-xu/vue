@@ -15,6 +15,7 @@ const idToTemplate = cached(id => {
 })
 
 const mount = Vue.prototype.$mount
+// $mount的核心作用是把模板编译成render函数
 Vue.prototype.$mount = function (
   el?: string | Element,
   hydrating?: boolean
@@ -34,9 +35,12 @@ Vue.prototype.$mount = function (
   // 如果用户不传递render函数，解析模板
   if (!options.render) {
     let template = options.template
+    // 如果模板存在
     if (template) {
       if (typeof template === 'string') {
+        // 如果模板是id选择器
         if (template.charAt(0) === '#') {
+          // 获取对应DOM对象的innerHTML
           template = idToTemplate(template)
           /* istanbul ignore if */
           if (process.env.NODE_ENV !== 'production' && !template) {
@@ -47,22 +51,26 @@ Vue.prototype.$mount = function (
           }
         }
       } else if (template.nodeType) {
+        // 如果模板是元素，返回元素的innerHTML
         template = template.innerHTML
       } else {
+        // 否则报出当前模板不合法，并且返回当前实例
         if (process.env.NODE_ENV !== 'production') {
           warn('invalid template option:' + template, this)
         }
         return this
       }
     } else if (el) {
+      // 如果没有template，获取el的outerHTML作为模板
       template = getOuterHTML(el)
     }
+    // 其实最后template变量的值都是dom的innerHTML
     if (template) {
       /* istanbul ignore if */
       if (process.env.NODE_ENV !== 'production' && config.performance && mark) {
         mark('compile')
       }
-
+      // 这个函数的作用就是把模板编译成render函数
       const { render, staticRenderFns } = compileToFunctions(template, {
         outputSourceRange: process.env.NODE_ENV !== 'production',
         shouldDecodeNewlines,

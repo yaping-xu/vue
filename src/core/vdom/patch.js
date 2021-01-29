@@ -71,12 +71,16 @@ export function createPatchFunction (backend) {
   let i, j
   const cbs = {}
 
+  // modules 节点的属性/事件/样式的操作
+  // nodeOps 节点操作
   const { modules, nodeOps } = backend
 
   for (i = 0; i < hooks.length; ++i) {
     cbs[hooks[i]] = []
     for (j = 0; j < modules.length; ++j) {
       if (isDef(modules[j][hooks[i]])) {
+        // 如果模块中定义了对应的钩子函数
+        // 最后的形式为：cbs['update'] = [updateAttrs, updateClass, update...]
         cbs[hooks[i]].push(modules[j][hooks[i]])
       }
     }
@@ -270,6 +274,7 @@ export function createPatchFunction (backend) {
   }
 
   function insert (parent, elm, ref) {
+    // 如果parent有值才会挂载dom
     if (isDef(parent)) {
       if (isDef(ref)) {
         if (nodeOps.parentNode(ref) === parent) {
@@ -577,6 +582,7 @@ export function createPatchFunction (backend) {
     // delay insert hooks for component root nodes, invoke them after the
     // element is really inserted
     if (isTrue(initial) && isDef(vnode.parent)) {
+      // 标记当前的操作是延缓操作
       vnode.parent.data.pendingInsert = queue
     } else {
       for (let i = 0; i < queue.length; ++i) {
@@ -696,30 +702,40 @@ export function createPatchFunction (backend) {
       return node.nodeType === (vnode.isComment ? 8 : 3)
     }
   }
+  // 函数柯里化，让一个函数返回一个函数
+  // createPatchFunction({ nodeOps, modules }) 传入平台相关的两个参数
 
   return function patch (oldVnode, vnode, hydrating, removeOnly) {
+    /* vnode不存在,但是oldVnode存在,执行Destory钩子函数 */
     if (isUndef(vnode)) {
       if (isDef(oldVnode)) invokeDestroyHook(oldVnode)
       return
     }
 
     let isInitialPatch = false
+    // 存储的是新插入的vnode节点队列
     const insertedVnodeQueue = []
 
+    // 老的VNode不存在, 创建vnode对应的真实dom, 存到队列中，但是并不挂载到dom中
     if (isUndef(oldVnode)) {
       // empty mount (likely as component), create new root element
       isInitialPatch = true
       createElm(vnode, insertedVnodeQueue)
     } else {
+      // 判断当前oldVnode是否是DOM元素(判断是否是首次渲染)
       const isRealElement = isDef(oldVnode.nodeType)
+      // 如果oldVnode不是dom元素，并且和 vnode是 sameVnode
       if (!isRealElement && sameVnode(oldVnode, vnode)) {
         // patch existing root node
+        // 开始执行diff, 并把差异更新到dom中去
         patchVnode(oldVnode, vnode, insertedVnodeQueue, null, null, removeOnly)
       } else {
+        // 如果第一个参数是真实DOM，把oldVnode 转成vnode节点
         if (isRealElement) {
           // mounting to a real element
           // check if this is server-rendered content and if we can perform
           // a successful hydration.
+          /** 这段操作是关于ssr的操作---开始 */
           if (oldVnode.nodeType === 1 && oldVnode.hasAttribute(SSR_ATTR)) {
             oldVnode.removeAttribute(SSR_ATTR)
             hydrating = true
@@ -738,8 +754,10 @@ export function createPatchFunction (backend) {
               )
             }
           }
+          /** 以上操作是关于ssr的操作---结束 */
           // either not server-rendered, or hydration failed.
           // create an empty node and replace it
+          // 把oldVnode 转成vnode节点，存到oldVnode中
           oldVnode = emptyNodeAt(oldVnode)
         }
 
@@ -748,6 +766,7 @@ export function createPatchFunction (backend) {
         const parentElm = nodeOps.parentNode(oldElm)
 
         // create new node
+        // 创建VNode节点
         createElm(
           vnode,
           insertedVnodeQueue,
@@ -759,6 +778,7 @@ export function createPatchFunction (backend) {
         )
 
         // update parent placeholder node element, recursively
+        // 处理父节点的占位符问题
         if (isDef(vnode.parent)) {
           let ancestor = vnode.parent
           const patchable = isPatchable(vnode)
@@ -789,14 +809,16 @@ export function createPatchFunction (backend) {
         }
 
         // destroy old node
+        // 判断oldVNode中的获取的parentElm是否存在
         if (isDef(parentElm)) {
+          // 把老节点移除，并触发相关的钩子函数
           removeVnodes([oldVnode], 0, 0)
         } else if (isDef(oldVnode.tag)) {
           invokeDestroyHook(oldVnode)
         }
       }
     }
-
+    // 通过isInitialPatch判断当前对应的dom元素是否挂载到dom树上，如果有：触发insertedVnodeQueue里面定义的所有钩子函数
     invokeInsertHook(vnode, insertedVnodeQueue, isInitialPatch)
     return vnode.elm
   }

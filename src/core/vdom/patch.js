@@ -152,6 +152,7 @@ export function createPatchFunction (backend) {
     const data = vnode.data
     const children = vnode.children
     const tag = vnode.tag
+    /**1. 判断vnode中是否有tag */
     if (isDef(tag)) {
       if (process.env.NODE_ENV !== 'production') {
         if (data && data.pre) {
@@ -167,9 +168,11 @@ export function createPatchFunction (backend) {
         }
       }
 
+      // 创建对应的dom元素
       vnode.elm = vnode.ns
         ? nodeOps.createElementNS(vnode.ns, tag)
         : nodeOps.createElement(tag, vnode)
+      // 为vnode的dom元素设置样式scope，
       setScope(vnode)
 
       /* istanbul ignore if */
@@ -192,10 +195,13 @@ export function createPatchFunction (backend) {
           insert(parentElm, vnode.elm, refElm)
         }
       } else {
+        // vnode中所有的子元素转成dom对象
         createChildren(vnode, children, insertedVnodeQueue)
         if (isDef(data)) {
+          // 触发create钩子函数
           invokeCreateHooks(vnode, insertedVnodeQueue)
         }
+        // 把创建好的dom对象挂载到dom树上
         insert(parentElm, vnode.elm, refElm)
       }
 
@@ -203,9 +209,11 @@ export function createPatchFunction (backend) {
         creatingElmInVPre--
       }
     } else if (isTrue(vnode.isComment)) {
+    /**2. 判断vnode是否是注释节点 */
       vnode.elm = nodeOps.createComment(vnode.text)
       insert(parentElm, vnode.elm, refElm)
     } else {
+    /**3. 判断vnode是否是文本节点 */
       vnode.elm = nodeOps.createTextNode(vnode.text)
       insert(parentElm, vnode.elm, refElm)
     }
@@ -544,6 +552,7 @@ export function createPatchFunction (backend) {
       return
     }
 
+    /**1. 执行了prepatch钩子函数 */
     let i
     const data = vnode.data
     if (isDef(data) && isDef(i = data.hook) && isDef(i = i.prepatch)) {
@@ -553,24 +562,35 @@ export function createPatchFunction (backend) {
     const oldCh = oldVnode.children
     const ch = vnode.children
     if (isDef(data) && isPatchable(vnode)) {
+      // 调用cbs中的钩子函数，操作节点的属性/样式/事件...
       for (i = 0; i < cbs.update.length; ++i) cbs.update[i](oldVnode, vnode)
+      // 用户的自定义钩子
       if (isDef(i = data.hook) && isDef(i = i.update)) i(oldVnode, vnode)
     }
+    // 新节点没有文本
     if (isUndef(vnode.text)) {
+      // 新老节点是否都有子节点并且不相等
+      // 对子节点，把子节点的差异更新到真实dom
       if (isDef(oldCh) && isDef(ch)) {
         if (oldCh !== ch) updateChildren(elm, oldCh, ch, insertedVnodeQueue, removeOnly)
       } else if (isDef(ch)) {
+        // 新节点有子节点，老节点没有子节点
         if (process.env.NODE_ENV !== 'production') {
           checkDuplicateKeys(ch)
         }
+        // 先清空老节点dom的文本内容清空，为当前dom节点加入子节点
         if (isDef(oldVnode.text)) nodeOps.setTextContent(elm, '')
         addVnodes(elm, null, ch, 0, ch.length - 1, insertedVnodeQueue)
       } else if (isDef(oldCh)) {
+        // 老节点有子节点，新节点没有，删除老节点中所有的子节点
         removeVnodes(oldCh, 0, oldCh.length - 1)
       } else if (isDef(oldVnode.text)) {
+        // 老节点有文本，新节点没有文本，清空老节点的文本内容
         nodeOps.setTextContent(elm, '')
       }
     } else if (oldVnode.text !== vnode.text) {
+      // 新老节点都有文本节点
+      // 修改文本
       nodeOps.setTextContent(elm, vnode.text)
     }
     if (isDef(data)) {
@@ -713,15 +733,16 @@ export function createPatchFunction (backend) {
     }
 
     let isInitialPatch = false
-    // 存储的是新插入的vnode节点队列
+    // 存储的是新插入的vnode节点队列: 存储这些节点的目的是，把这些vnode对应的dom元素挂载到对应的dom树上之后，回去触发dom对应的insert钩子函数
     const insertedVnodeQueue = []
 
-    // 老的VNode不存在, 创建vnode对应的真实dom, 存到队列中，但是并不挂载到dom中
+    // 老的VNode不存在, 创建vnode对应的真实dom, 存到队列中，但是并不挂载到dom中（当我们调用组件的$mount方法的时候不传参数，会有这种情况）
     if (isUndef(oldVnode)) {
       // empty mount (likely as component), create new root element
       isInitialPatch = true
+      // 把vnode转成真实dom
       createElm(vnode, insertedVnodeQueue)
-    } else {
+    } else { // else里面就是oldVnode存在
       // 判断当前oldVnode是否是DOM元素(判断是否是首次渲染)
       const isRealElement = isDef(oldVnode.nodeType)
       // 如果oldVnode不是dom元素，并且和 vnode是 sameVnode
@@ -766,7 +787,7 @@ export function createPatchFunction (backend) {
         const parentElm = nodeOps.parentNode(oldElm)
 
         // create new node
-        // 创建VNode节点
+        // vnode转成真实dom，并挂载
         createElm(
           vnode,
           insertedVnodeQueue,

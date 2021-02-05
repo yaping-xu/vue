@@ -75,11 +75,14 @@ export function createASTElement (
 
 /**
  * Convert HTML string to AST.
+ * 用来生成ast抽象树
+ * 总结： parse处理的时候会依次遍历html模板字符串，把html模板字符串转换成ast对象，html中的属性和指令都会记录在ast对象的相应属性上
  */
 export function parse (
   template: string,
   options: CompilerOptions
 ): ASTElement | void {
+  /**1. 解析options成员—————————————————————————— */
   warn = options.warn || baseWarn
 
   platformIsPreTag = options.isPreTag || no
@@ -201,6 +204,7 @@ export function parse (
     }
   }
 
+  /**2. 对模板解析———————————————————————————————————————————— */
   parseHTML(template, {
     warn,
     expectHTML: options.expectHTML,
@@ -210,6 +214,7 @@ export function parse (
     shouldDecodeNewlinesForHref: options.shouldDecodeNewlinesForHref,
     shouldKeepComment: options.comments,
     outputSourceRange: options.outputSourceRange,
+    // 下面四个函数式处理完内容后的回调函数
     start (tag, attrs, unary, start, end) {
       // check namespace.
       // inherit parent ns if there is one
@@ -265,6 +270,7 @@ export function parse (
       }
 
       if (!inVPre) {
+        // 处理v-pre指令
         processPre(element)
         if (element.pre) {
           inVPre = true
@@ -277,6 +283,7 @@ export function parse (
         processRawAttrs(element)
       } else if (!element.processed) {
         // structural directives
+        // 处理结构化的指令
         processFor(element)
         processIf(element)
         processOnce(element)

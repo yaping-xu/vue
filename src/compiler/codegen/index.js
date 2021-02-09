@@ -30,8 +30,8 @@ export class CodegenState {
     const isReservedTag = options.isReservedTag || no
     this.maybeComponent = (el: ASTElement) => !!el.component || !isReservedTag(el.tag)
     this.onceId = 0
-    this.staticRenderFns = []
-    this.pre = false
+    this.staticRenderFns = [] // 用来存储静态根节点生成的代码，因为一个模板中可能有多个静态根节点，所以是数组
+    this.pre = false // 用来记录当前处理的节点是否用pre标记的
   }
 }
 
@@ -44,10 +44,13 @@ export function generate (
   ast: ASTElement | void,
   options: CompilerOptions
 ): CodegenResult {
+  // 1. 创建一个代码生成过程中的状态对象
   const state = new CodegenState(options)
+  // 2. 如果ast存在，开始生成代码
   const code = ast ? genElement(ast, state) : '_c("div")'
   return {
     render: `with(this){return ${code}}`,
+    // 重点关注staticRenderFns的创建过程
     staticRenderFns: state.staticRenderFns
   }
 }
@@ -56,7 +59,7 @@ export function genElement (el: ASTElement, state: CodegenState): string {
   if (el.parent) {
     el.pre = el.pre || el.parent.pre
   }
-
+  // staticProcessed 用来标记当前节点是否被处理了
   if (el.staticRoot && !el.staticProcessed) {
     return genStatic(el, state)
   } else if (el.once && !el.onceProcessed) {
@@ -77,9 +80,11 @@ export function genElement (el: ASTElement, state: CodegenState): string {
     } else {
       let data
       if (!el.plain || (el.pre && state.maybeComponent(el))) {
+        // 生成元素的属性/指令/事件等
+        // 处理各种指令，包括genDirectives(model/text/html)
         data = genData(el, state)
       }
-
+      // 处理子节点
       const children = el.inlineTemplate ? null : genChildren(el, state, true)
       code = `_c('${el.tag}'${
         data ? `,${data}` : '' // data
@@ -459,7 +464,8 @@ function genScopedSlot (
   const reverseProxy = slotScope ? `` : `,proxy:true`
   return `{key:${el.slotTarget || `"default"`},fn:${fn}${reverseProxy}}`
 }
-
+// genChildren函数的核心作用就是把数组的每一个ast对象，通过调用genNode生成对应的代码形式
+// 最后把数组中的每一下转成通过逗号分隔的字符串，还会拼接上normalizationType，也就是如何拍平数组
 export function genChildren (
   el: ASTElement,
   state: CodegenState,
@@ -481,9 +487,11 @@ export function genChildren (
         : ``
       return `${(altGenElement || genElement)(el, state)}${normalizationType}`
     }
+    // 首先获取，如何去处理数组
     const normalizationType = checkSkip
       ? getNormalizationType(children, state.maybeComponent)
       : 0
+    // 然后获取gen函数
     const gen = altGenNode || genNode
     return `[${children.map(c => gen(c, state)).join(',')}]${
       normalizationType ? `,${normalizationType}` : ''
@@ -533,6 +541,7 @@ function genNode (node: ASTNode, state: CodegenState): string {
 }
 
 export function genText (text: ASTText | ASTExpression): string {
+  // text.type === 2 代表处理的是表达式
   return `_v(${text.type === 2
     ? text.expression // no need for () because already wrapped in _s()
     : transformSpecialNewlines(JSON.stringify(text.text))
@@ -540,6 +549,7 @@ export function genText (text: ASTText | ASTExpression): string {
 }
 
 export function genComment (comment: ASTText): string {
+  // JSON.stringify(comment.text) 字符串加上引号 hello -> "hello"
   return `_e(${JSON.stringify(comment.text)})`
 }
 
